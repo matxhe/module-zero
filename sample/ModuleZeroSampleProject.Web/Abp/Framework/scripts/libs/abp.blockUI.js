@@ -7,14 +7,14 @@
 
     $.extend($.blockUI.defaults, {
         message: ' ',
-        css: { },
+        css: {},
         overlayCSS: {
             backgroundColor: '#AAA',
             opacity: 0.3,
-            cursor: 'wait'    
+            cursor: 'wait'
         }
     });
-    
+
     abp.ui.block = function (elm) {
         if (!elm) {
             $.blockUI();

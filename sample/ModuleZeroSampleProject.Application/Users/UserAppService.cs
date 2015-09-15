@@ -23,5 +23,10 @@ namespace ModuleZeroSampleProject.Users
                        Items = _userManager.Users.ToList().MapTo<List<UserDto>>()
                    };
         }
+
+        //public User GetUser(long userId)
+        //{
+
+        //}
     }
 }

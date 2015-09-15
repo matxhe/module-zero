@@ -3,5 +3,14 @@
   <texts>
     <text name="Questions" value="Questions" />
     <text name="Users" value="Users" />
+    <text name="Roles" value="Roles" />
+    <text name="Actions" value="Actions" />
+    <text name="RoleName" value="Role Name" />
+    <text name="Edit" value="Edit" />
+    <text name="StaticRole_Tooltip" value="Static roles can not be deleted." />
+    <text name="Static" value="STATIC" />
+    <text name="DefaultRole_Description" value="Assign to new users." />
+    <text name="Default" value="DEFAULT" />
+    <text name="CreationTime" value="Creation Time" />
   </texts>
 </localizationDictionary>

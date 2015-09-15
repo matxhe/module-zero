@@ -1,0 +1,134 @@
+﻿@using System.Threading
+@using System.Web.Optimization
+<!--[if !IE]><!-->
+<html lang="en" data-ng-app="app">
+<!--<![endif]-->
+<!-- BEGIN HEAD -->
+<head>
+    <title data-ng-bind="'EMS | ' + $state.current.data.pageTitle"></title>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="" name="description" />
+    <meta content="" name="author" />
+    <!-- BEGIN GLOBAL MANDATORY STYLES -->
+    @Styles.Render("~/Bundles/App/vendor/opensans")
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700&subset=all" rel="stylesheet" type="text/css" />
+
+    @Styles.Render("~/Bundles/App/vendor/css")
+    <!-- END GLOBAL MANDATORY STYLES -->
+    <!-- BEGIN DYMANICLY LOADED CSS FILES(all plugin and page related styles must be loaded between GLOBAL and THEME css files ) -->
+    <link id="ng_load_plugins_before" />
+    <!-- END DYMANICLY LOADED CSS FILES -->
+    <!-- BEGIN THEME STYLES -->
+
+    @Styles.Render("~/Bundles/App/Main/css")
+    <!-- END THEME STYLES -->
+
+    <link rel="shortcut icon" href="~/favicon.ico">
+
+    <script type="text/javascript">
+        //This is used to get the application's root path from javascript. It's useful if you're running application in a virtual directory under IIS.
+        var abp = abp || {}; abp.appPath = '@ApplicationPath';
+    </script>
+</head>
+<!-- END HEAD -->
+<!-- BEGIN BODY -->
+<!-- DOC: Apply "page-header-fixed-mobile" and "page-footer-fixed-mobile" class to body element to force fixed header or footer in mobile devices -->
+<!-- DOC: Apply "page-sidebar-closed" class to the body and "page-sidebar-menu-closed" class to the sidebar menu element to hide the sidebar by default -->
+<!-- DOC: Apply "page-sidebar-hide" class to the body to make the sidebar completely hidden on toggle -->
+<!-- DOC: Apply "page-sidebar-closed-hide-logo" class to the body element to make the logo hidden on sidebar toggle -->
+<!-- DOC: Apply "page-sidebar-hide" class to body element to completely hide the sidebar on sidebar toggle -->
+<!-- DOC: Apply "page-sidebar-fixed" class to have fixed sidebar -->
+<!-- DOC: Apply "page-footer-fixed" class to the body element to have fixed footer -->
+<!-- DOC: Apply "page-sidebar-reversed" class to put the sidebar on the right side -->
+<!-- DOC: Apply "page-full-width" class to the body element to have full width page without the sidebar menu -->
+<body ng-controller="common.views.layout as vm" class="page-md page-header-fixed page-sidebar-closed-hide-logo page-container-bg-solid page-sidebar-closed-hide-logo page-on-load" ng-class="{'page-sidebar-closed': settings.layout.pageSidebarClosed}">
+
+    <!-- BEGIN PAGE SPINNER -->
+    <div ng-spinner-bar class="page-spinner-bar">
+        <div class="bounce1"></div>
+        <div class="bounce2"></div>
+        <div class="bounce3"></div>
+    </div>
+    <!-- END PAGE SPINNER -->
+    <!-- BEGIN HEADER -->
+    <div data-ng-include="'~/App/common/views/layout/header.cshtml'" data-ng-controller="common.views.layout.header as vm" class="page-header md-shadow-z-1-i navbar navbar-fixed-top">
+    </div>
+    <!-- END HEADER -->
+
+    <div class="clearfix">
+    </div>
+
+    <!-- BEGIN CONTAINER -->
+    <div class="page-container">
+        <!-- BEGIN SIDEBAR -->
+        <div data-ng-include="'~/App/common/views/layout/sidebar.cshtml'" data-ng-controller="common.views.layout.sidebar as vm" class="page-sidebar-wrapper">
+        </div>
+        <!-- END SIDEBAR -->
+        <div class="page-content-wrapper">
+            <div class="page-content">
+                <!-- BEGIN PAGE HEAD -->
+                <div data-ng-include="'~/App/common/views/layout/page-head.cshtml'" data-ng-controller="common.views.layout.pagehead" class="page-head">
+                </div>
+                <!-- END PAGE HEAD -->
+                <!-- BEGIN ACTUAL CONTENT -->
+                <div ui-view class="fade-in-up">
+                </div>
+                @*<div class="angular-animation-container row">
+                        <div ui-view class="shuffle-animation col-xs-12"></div>
+                    </div>*@
+                <!-- END ACTUAL CONTENT -->
+            </div>
+        </div>
+    </div>
+    <!-- END CONTAINER -->
+    <!-- BEGIN FOOTER -->
+    <div data-ng-include="'~/App/common/views/layout/footer.cshtml'" data-ng-controller="common.views.layout.footer" class="page-footer">
+    </div>
+    <!-- END FOOTER -->
+    <!-- BEGIN JAVASCRIPTS(Load javascripts at bottom, this will reduce page load time) -->
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+        <script src="@Url.Content("~/bower_components/html5shiv/dist/html5shiv.min.js")"></script>
+        <script src="@Url.Content("~/bower_components/respond/dest/respond.matchmedia.addListener.min.js")"></script>
+        <script src="@Url.Content("~/bower_components/respond/dest/respond.min.js")"></script>
+    <![endif]-->
+    <!-- BEGIN CORE JQUERY PLUGINS -->
+    @Scripts.Render("~/Bundles/App/vendor/jquery")
+    <!-- END CORE JQUERY PLUGINS -->
+
+    <!-- BEGIN CORE ANGULARJS PLUGINS -->
+    @Scripts.Render("~/Bundles/App/vendor/angularjs")
+    <!-- END CORE ANGULARJS PLUGINS -->
+    <script>
+    //Localizing momentjs
+    moment.locale('@Thread.CurrentThread.CurrentUICulture.Name');
+    </script>
+
+    <!-- BEGIN APP LEVEL ANGULARJS SCRIPTS -->
+    <!-- Dynamic scripts of ABP system (They are created on runtime and can not be bundled) -->
+    <script src="~/api/AbpServiceProxies/GetAll?type=angular"></script>
+    <script src="~/AbpScripts/GetScripts" type="text/javascript"></script>
+
+    @Scripts.Render("~/Bundles/App/Metronic/js")
+    @Scripts.Render("~/Bundles/App/common/js")
+    @Scripts.Render("~/Bundles/App/Main/js")
+
+    <!-- END APP LEVEL ANGULARJS SCRIPTS -->
+    <!-- BEGIN APP LEVEL JQUERY SCRIPTS -->
+    <!-- END APP LEVEL JQUERY SCRIPTS -->
+
+
+    <script type="text/javascript">
+        /* Init Metronic's core jquery plugins and layout scripts */
+        $(document).ready(function () {
+            Metronic.init(); // Run metronic theme
+            Metronic.setAssetsPath(abp.appPath + 'app/metronic/assets/'); // Set the assets folder path
+        });
+    </script>
+    <!-- END JAVASCRIPTS -->
+</body>
+<!-- END BODY -->
+</html>

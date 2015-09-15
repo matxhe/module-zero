@@ -18,14 +18,21 @@ namespace ModuleZeroSampleProject.Web
                     new MenuItemDefinition(
                         "Questions",
                         new LocalizableString("Questions", ModuleZeroSampleProjectConsts.LocalizationSourceName),
-                        url: "#/questions",
+                        url: "questions",
                         icon: "fa fa-question"
                         )
                 ).AddItem(
                     new MenuItemDefinition(
                         "Users",
                         new LocalizableString("Users", ModuleZeroSampleProjectConsts.LocalizationSourceName),
-                        url: "#/users",
+                        url: "users",
+                        icon: "fa fa-user"
+                        )
+                ).AddItem(
+                    new MenuItemDefinition(
+                        "Roles",
+                        new LocalizableString("Roles", ModuleZeroSampleProjectConsts.LocalizationSourceName),
+                        url: "roles",
                         icon: "fa fa-users"
                         )
                 );

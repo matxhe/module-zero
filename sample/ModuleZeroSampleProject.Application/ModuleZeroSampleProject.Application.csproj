@@ -132,6 +132,20 @@
     <Compile Include="Questions\Dto\VoteChangeOutput.cs" />
     <Compile Include="Questions\Dto\SubmitAnswerInput.cs" />
     <Compile Include="Questions\Dto\SubmitAnswerOutput.cs" />
+    <Compile Include="Roles\Dto\RoleDto.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Roles\IRoleAppService.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Roles\RoleAppService.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Sessions\Dto\GetCurrentLoginInformationsOutput.cs" />
+    <Compile Include="Sessions\Dto\TenantLoginInfoDto.cs" />
+    <Compile Include="Sessions\Dto\UserLoginInfoDto.cs" />
+    <Compile Include="Sessions\ISessionAppService.cs" />
+    <Compile Include="Sessions\SessionAppService.cs" />
     <Compile Include="Users\IUserAppService.cs" />
     <Compile Include="Users\Dto\UserDto.cs" />
     <Compile Include="Users\UserAppService.cs" />

@@ -278,11 +278,11 @@
 
     /* SIMPLE EVENT BUS *****************************************/
 
-    abp.event = (function() {
+    abp.event = (function () {
 
         var _callbacks = {};
 
-        var on = function(eventName, callback) {
+        var on = function (eventName, callback) {
             if (!_callbacks[eventName]) {
                 _callbacks[eventName] = [];
             }
@@ -290,7 +290,7 @@
             _callbacks[eventName].push(callback);
         };
 
-        var trigger = function(eventName) {
+        var trigger = function (eventName) {
             var callbacks = _callbacks[eventName];
             if (!callbacks || !callbacks.length) {
                 return;

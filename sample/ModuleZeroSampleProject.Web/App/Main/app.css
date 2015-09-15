@@ -1,0 +1,52 @@
+﻿button i {
+  margin-right: 5px; }
+
+.clickable-item {
+  cursor: pointer; }
+
+.ui-grid {
+  min-height: 380px; }
+  .ui-grid .dropdown.open {
+    position: fixed;
+    z-index: 10; }
+
+.form-group.form-md-line-input .no-hint {
+  margin-bottom: 15px; }
+.form-group.form-md-line-input .form-control.ng-touched.ng-invalid {
+  border-bottom-color: red; }
+.form-group.form-md-line-input .form-control.ng-touched.ng-invalid.edited:not([readonly]) ~ label:after {
+  background-color: red; }
+
+.portlet.light > .portlet-title > .inputs.inputs-full-width {
+  display: block;
+  float: none; }
+
+.tree-item-icon-color {
+  color: #dfba49; }
+
+.audit-log-detail-view h3.form-section {
+  margin-top: 5px; }
+.audit-log-detail-view .form-group {
+  margin-bottom: 0; }
+  .audit-log-detail-view .form-group p.form-control-static {
+    margin: 0; }
+  .audit-log-detail-view .form-group .control-label {
+    font-weight: bold; }
+
+.page-header.navbar .page-logo .logo-default {
+  margin: 19px 10px 0 10px; }
+.page-header.navbar .navbar-fixed-top {
+  z-index: 1000; }
+.page-header.navbar .navbar-static-top {
+  z-index: 1000; }
+
+.page-sidebar-menu .sub-menu .sub-menu-icon {
+  margin-right: 3px; }
+
+.user-edit-dialog-profile-image {
+  margin-bottom: 20px; }
+
+.img-profile-picture-in-grid {
+  margin-right: 2px; }
+
+/*# sourceMappingURL=app.css.map */

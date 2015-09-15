@@ -3,5 +3,6 @@
   <texts>
     <text name="Questions" value="Sorular" />
     <text name="Users" value="Kullanıcılar" />
+    <text name="Roles" value="Roles" />
   </texts>
 </localizationDictionary>
