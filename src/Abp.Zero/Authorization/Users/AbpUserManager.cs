@@ -14,6 +14,7 @@ using Abp.Extensions;
 using Abp.IdentityFramework;
 using Abp.Localization;
 using Abp.MultiTenancy;
+using Abp.Runtime.Caching;
 using Abp.Runtime.Security;
 using Abp.Runtime.Session;
 using Abp.Timing;
@@ -26,7 +27,9 @@ namespace Abp.Authorization.Users
     /// <summary>
     /// Extends <see cref="UserManager{TUser,TKey}"/> of ASP.NET Identity Framework.
     /// </summary>
-    public abstract class AbpUserManager<TTenant, TRole, TUser> : UserManager<TUser, long>, ITransientDependency
+    public abstract class AbpUserManager<TTenant, TRole, TUser>
+        : UserManager<TUser, long>,
+        ITransientDependency
         where TTenant : AbpTenant<TTenant, TUser>
         where TRole : AbpRole<TTenant, TUser>, new()
         where TUser : AbpUser<TTenant, TUser>
@@ -60,8 +63,8 @@ namespace Abp.Authorization.Users
         private readonly IIocResolver _iocResolver;
         private readonly IRepository<TTenant> _tenantRepository;
         private readonly IMultiTenancyConfig _multiTenancyConfig;
+        private readonly ITypedCache<long, UserPermissionCacheItem> _userPermissionCache;
 
-        //TODO: Non-generic parameters may be converted to property-injection
         protected AbpUserManager(
             AbpUserStore<TTenant, TRole, TUser> userStore,
             AbpRoleManager<TTenant, TRole, TUser> roleManager,
@@ -71,7 +74,8 @@ namespace Abp.Authorization.Users
             IUnitOfWorkManager unitOfWorkManager,
             ISettingManager settingManager,
             IUserManagementConfig userManagementConfig,
-            IIocResolver iocResolver)
+            IIocResolver iocResolver,
+            ICacheManager cacheManager)
             : base(userStore)
         {
             AbpStore = userStore;
@@ -83,6 +87,9 @@ namespace Abp.Authorization.Users
             _unitOfWorkManager = unitOfWorkManager;
             _userManagementConfig = userManagementConfig;
             _iocResolver = iocResolver;
+
+            _userPermissionCache = cacheManager.GetUserPermissionCache();
+
             LocalizationManager = NullLocalizationManager.Instance;
         }
 
@@ -110,7 +117,7 @@ namespace Abp.Authorization.Users
         public virtual async Task<bool> IsGrantedAsync(long userId, string permissionName)
         {
             return await IsGrantedAsync(
-                await GetUserByIdAsync(userId),
+                userId,
                 _permissionManager.GetPermission(permissionName)
                 );
         }
@@ -120,7 +127,17 @@ namespace Abp.Authorization.Users
         /// </summary>
         /// <param name="user">User</param>
         /// <param name="permission">Permission</param>
-        public virtual async Task<bool> IsGrantedAsync(TUser user, Permission permission)
+        public virtual Task<bool> IsGrantedAsync(TUser user, Permission permission)
+        {
+            return IsGrantedAsync(user.Id, permission);
+        }
+
+        /// <summary>
+        /// Check whether a user is granted for a permission.
+        /// </summary>
+        /// <param name="userId">User id</param>
+        /// <param name="permission">Permission</param>
+        public virtual async Task<bool> IsGrantedAsync(long userId, Permission permission)
         {
             //Check for multi-tenancy side
             if (!permission.MultiTenancySides.HasFlag(AbpSession.MultiTenancySide))
@@ -128,27 +145,24 @@ namespace Abp.Authorization.Users
                 return false;
             }
 
+            //Get cached user permissions
+            var cacheItem = await GetUserPermissionCacheItemAsync(userId);
+
             //Check for user-specific value
-            if (await UserPermissionStore.HasPermissionAsync(user, new PermissionGrantInfo(permission.Name, true)))
+            if (cacheItem.GrantedPermissions.Contains(permission.Name))
             {
                 return true;
             }
 
-            if (await UserPermissionStore.HasPermissionAsync(user, new PermissionGrantInfo(permission.Name, false)))
+            if (cacheItem.ProhibitedPermissions.Contains(permission.Name))
             {
                 return false;
             }
 
             //Check for roles
-            var roleNames = await GetRolesAsync(user.Id);
-            if (!roleNames.Any())
+            foreach (var roleId in cacheItem.RoleIds)
             {
-                return permission.IsGrantedByDefault;
-            }
-
-            foreach (var roleName in roleNames)
-            {
-                if (await RoleManager.HasPermissionAsync(roleName, permission.Name))
+                if (await RoleManager.IsGrantedAsync(roleId, permission))
                 {
                     return true;
                 }
@@ -168,7 +182,7 @@ namespace Abp.Authorization.Users
 
             foreach (var permission in _permissionManager.GetAllPermissions())
             {
-                if (await IsGrantedAsync(user, permission))
+                if (await IsGrantedAsync(user.Id, permission))
                 {
                     permissionList.Add(permission);
                 }
@@ -233,7 +247,7 @@ namespace Abp.Authorization.Users
         {
             await UserPermissionStore.RemovePermissionAsync(user, new PermissionGrantInfo(permission.Name, false));
 
-            if (await IsGrantedAsync(user, permission))
+            if (await IsGrantedAsync(user.Id, permission))
             {
                 return;
             }
@@ -250,7 +264,7 @@ namespace Abp.Authorization.Users
         {
             await UserPermissionStore.RemovePermissionAsync(user, new PermissionGrantInfo(permission.Name, true));
 
-            if (!await IsGrantedAsync(user, permission))
+            if (!await IsGrantedAsync(user.Id, permission))
             {
                 return;
             }
@@ -261,6 +275,51 @@ namespace Abp.Authorization.Users
         public virtual async Task<TUser> FindByNameOrEmailAsync(string userNameOrEmailAddress)
         {
             return await AbpStore.FindByNameOrEmailAsync(userNameOrEmailAddress);
+        }
+
+        public virtual Task<List<TUser>> FindAllAsync(UserLoginInfo login)
+        {
+            return AbpStore.FindAllAsync(login);
+        }
+
+        [UnitOfWork]
+        public virtual async Task<AbpLoginResult> LoginAsync(UserLoginInfo login, string tenancyName = null)
+        {
+            if (login == null || login.LoginProvider.IsNullOrEmpty() || login.ProviderKey.IsNullOrEmpty())
+            {
+                throw new ArgumentException("login");
+            }
+
+            //Get and check tenant
+            TTenant tenant = null;
+            if (!_multiTenancyConfig.IsEnabled)
+            {
+                tenant = await GetDefaultTenantAsync();
+            }
+            else if (!string.IsNullOrWhiteSpace(tenancyName))
+            {
+                tenant = await _tenantRepository.FirstOrDefaultAsync(t => t.TenancyName == tenancyName);
+                if (tenant == null)
+                {
+                    return new AbpLoginResult(AbpLoginResultType.InvalidTenancyName);
+                }
+
+                if (!tenant.IsActive)
+                {
+                    return new AbpLoginResult(AbpLoginResultType.TenantIsNotActive);
+                }
+            }
+
+            using (_unitOfWorkManager.Current.DisableFilter(AbpDataFilters.MayHaveTenant))
+            {
+                var user = await AbpStore.FindAsync(tenant == null ? (int?)null : tenant.Id, login);
+                if (user == null)
+                {
+                    return new AbpLoginResult(AbpLoginResultType.UnknownExternalLogin);
+                }
+
+                return await CreateLoginResultAsync(user);
+            }
         }
 
         [UnitOfWork]
@@ -298,19 +357,16 @@ namespace Abp.Authorization.Users
 
             using (_unitOfWorkManager.Current.DisableFilter(AbpDataFilters.MayHaveTenant))
             {
-                TUser user;
-                if (await TryLoginFromExternalAuthenticationSources(userNameOrEmailAddress, plainPassword, tenant))
-                {
-                    user = await AbpStore.FindByNameOrEmailAsync(tenant == null ? (int?)null : tenant.Id, userNameOrEmailAddress);                    
-                }
-                else
-                {
-                    user = await AbpStore.FindByNameOrEmailAsync(tenant == null ? (int?)null : tenant.Id, userNameOrEmailAddress);
-                    if (user == null)
-                    {
-                        return new AbpLoginResult(AbpLoginResultType.InvalidUserNameOrEmailAddress);
-                    }
+                var loggedInFromExternalSource = await TryLoginFromExternalAuthenticationSources(userNameOrEmailAddress, plainPassword, tenant);
 
+                var user = await AbpStore.FindByNameOrEmailAsync(tenant == null ? (int?)null : tenant.Id, userNameOrEmailAddress);
+                if (user == null)
+                {
+                    return new AbpLoginResult(AbpLoginResultType.InvalidUserNameOrEmailAddress);
+                }
+
+                if (!loggedInFromExternalSource)
+                {
                     var verificationResult = new PasswordHasher().VerifyHashedPassword(user.Password, plainPassword);
                     if (verificationResult != PasswordVerificationResult.Success)
                     {
@@ -318,24 +374,29 @@ namespace Abp.Authorization.Users
                     }
                 }
 
-                if (!user.IsActive)
-                {
-                    return new AbpLoginResult(AbpLoginResultType.UserIsNotActive);
-                }
-
-                if (await IsEmailConfirmationRequiredForLoginAsync(user.TenantId) && !user.IsEmailConfirmed)
-                {
-                    return new AbpLoginResult(AbpLoginResultType.UserEmailIsNotConfirmed);
-                }
-
-                user.LastLoginTime = Clock.Now;
-
-                await Store.UpdateAsync(user);
-
-                await _unitOfWorkManager.Current.SaveChangesAsync();
-
-                return new AbpLoginResult(user, await CreateIdentityAsync(user, DefaultAuthenticationTypes.ApplicationCookie));
+                return await CreateLoginResultAsync(user);
             }
+        }
+
+        private async Task<AbpLoginResult> CreateLoginResultAsync(TUser user)
+        {
+            if (!user.IsActive)
+            {
+                return new AbpLoginResult(AbpLoginResultType.UserIsNotActive);
+            }
+
+            if (await IsEmailConfirmationRequiredForLoginAsync(user.TenantId) && !user.IsEmailConfirmed)
+            {
+                return new AbpLoginResult(AbpLoginResultType.UserEmailIsNotConfirmed);
+            }
+
+            user.LastLoginTime = Clock.Now;
+
+            await Store.UpdateAsync(user);
+
+            await _unitOfWorkManager.Current.SaveChangesAsync();
+
+            return new AbpLoginResult(user, await CreateIdentityAsync(user, DefaultAuthenticationTypes.ApplicationCookie));
         }
 
         private async Task<bool> TryLoginFromExternalAuthenticationSources(string userNameOrEmailAddress, string plainPassword, TTenant tenant)
@@ -351,7 +412,7 @@ namespace Abp.Authorization.Users
                 {
                     if (await source.Object.TryAuthenticateAsync(userNameOrEmailAddress, plainPassword, tenant))
                     {
-                        var tenantId = tenant == null ? (int?) null : tenant.Id;
+                        var tenantId = tenant == null ? (int?)null : tenant.Id;
 
                         var user = await AbpStore.FindByNameOrEmailAsync(tenantId, userNameOrEmailAddress);
                         if (user == null)
@@ -373,7 +434,7 @@ namespace Abp.Authorization.Users
                         else
                         {
                             await source.Object.UpdateUserAsync(user, tenant);
-                            
+
                             user.AuthenticationSource = source.Object.Name;
 
                             await Store.UpdateAsync(user);
@@ -526,6 +587,33 @@ namespace Abp.Authorization.Users
             }
 
             return tenant;
+        }
+        
+        private async Task<UserPermissionCacheItem> GetUserPermissionCacheItemAsync(long userId)
+        {
+            return await _userPermissionCache.GetAsync(userId, async () =>
+            {
+                var newCacheItem = new UserPermissionCacheItem(userId);
+
+                foreach (var roleName in await GetRolesAsync(userId))
+                {
+                    newCacheItem.RoleIds.Add((await RoleManager.GetRoleByNameAsync(roleName)).Id);
+                }
+
+                foreach (var permissionInfo in await UserPermissionStore.GetPermissionsAsync(userId))
+                {
+                    if (permissionInfo.IsGranted)
+                    {
+                        newCacheItem.GrantedPermissions.Add(permissionInfo.Name);
+                    }
+                    else
+                    {
+                        newCacheItem.ProhibitedPermissions.Add(permissionInfo.Name);
+                    }
+                }
+
+                return newCacheItem;
+            });
         }
 
         private string L(string name)
